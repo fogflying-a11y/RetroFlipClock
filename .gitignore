@@ -1,0 +1,42 @@
+# Built application files
+*.apk
+*.aar
+*.ap_
+*.aab
+
+# Build outputs
+build/
+app/build/
+app/release/
+
+# Gradle cache
+.gradle/
+.kotlin/
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+
+# VS Code
+.vscode/
+
+# Local configuration
+local.properties
+
+# Signing keys
+key/
+
+# JVM crash logs
+hs_err_pid*.log
+replay_pid*.log
+
+# Source assets (duplicated in app/src/main/assets/)
+/assets/
+
+# Misc design files
+未标题-1.jpg
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
