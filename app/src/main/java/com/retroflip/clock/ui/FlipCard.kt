@@ -1,8 +1,7 @@
 package com.retroflip.clock.ui
 
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredHeight
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -63,7 +63,7 @@ private val hingeDarkColor = Color(0xFF1A1A1A)
 private val colonBrassColor = Color(0xFFD6B35A)
 
 private val flipFont = FontFamily(
-    Font(R.font.tickingtimebombbb, FontWeight.Black)
+    Font(R.font.bebasneueregular, FontWeight.Normal)
 )
 
 // ─────────────────────────────────────────────────────────────
@@ -87,10 +87,7 @@ fun FlipCard(
             animProgress.snapTo(0f)
             animProgress.animateTo(
                 targetValue = 1f,
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                    stiffness = Spring.StiffnessMedium
-                )
+                animationSpec = tween(durationMillis = 300, easing = androidx.compose.animation.core.LinearEasing)
             )
             previousValue = value
         }
@@ -111,21 +108,17 @@ fun FlipCard(
         val cardHeight = maxHeight
         val halfHeight = cardHeight / 2f
 
-        // ── Solari Udine proportions ──
-        // TickingTimebombBB actual glyph width ≈ 0.63 × fontSize per digit
-        // 2 digits ≈ 1.26 × fontSize → fontSize = cardWidth × 0.96 / 1.26
-        val fontSizeFromWidth = (maxWidth * 0.96f) / 1.26f
+        // ── BebasNeue proportions ──
+        // BebasNeue actual glyph width ≈ 0.5 × fontSize per digit
+        // 2 digits ≈ 1.0 × fontSize → fontSize = cardWidth × 0.96 / 1.0
+        val fontSizeFromWidth = (maxWidth * 0.96f) / 1.0f
         val fontSizeFromHeight = cardHeight * 0.92f
         val fontSizeDp = minOf(fontSizeFromWidth, fontSizeFromHeight)
             .coerceIn(24.dp, 800.dp)
         val fontSize = fontSizeDp.value.sp
 
-        val shadowAlpha = if (progress in 0.02f..0.98f) {
-            sin(progress * Math.PI.toFloat()) * 0.45f
-        } else 0f
-
-        val topFlapAngle = progress * 100f
-        val bottomFlapAngle = (1f - progress) * 100f
+        val topFlapAngle = progress * 90f
+        val bottomFlapAngle = (1f - progress) * 90f
 
         // ── Card base: ABS plastic panel ──
         Box(
@@ -222,6 +215,7 @@ fun FlipCard(
 
         // ── Folding OLD top flap ──
         if (progress in 0f..0.99f) {
+            val flapShadowAlpha = sin(progress * Math.PI.toFloat()) * 0.5f
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -231,7 +225,17 @@ fun FlipCard(
                     .graphicsLayer {
                         this.rotationX = topFlapAngle
                         this.transformOrigin = TransformOrigin(0.5f, 1f)
-                        this.cameraDistance = 12f * density
+                        this.cameraDistance = 25f * density
+                    }
+                    .drawBehind {
+                        // Shadow on flap: darker at bottom edge (hinge)
+                        drawRect(
+                            brush = Brush.verticalGradient(
+                                colors = listOf(Color.Transparent, Color.Black.copy(alpha = flapShadowAlpha)),
+                                startY = size.height * 0.3f,
+                                endY = size.height
+                            )
+                        )
                     },
                 contentAlignment = Alignment.TopCenter
             ) {
@@ -252,6 +256,7 @@ fun FlipCard(
 
         // ── Unfolding NEW bottom flap ──
         if (progress in 0.01f..1f) {
+            val flapShadowAlpha = sin(progress * Math.PI.toFloat()) * 0.5f
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -261,7 +266,17 @@ fun FlipCard(
                     .graphicsLayer {
                         this.rotationX = bottomFlapAngle
                         this.transformOrigin = TransformOrigin(0.5f, 0f)
-                        this.cameraDistance = 12f * density
+                        this.cameraDistance = 25f * density
+                    }
+                    .drawBehind {
+                        // Shadow on flap: darker at top edge (hinge)
+                        drawRect(
+                            brush = Brush.verticalGradient(
+                                colors = listOf(Color.Black.copy(alpha = flapShadowAlpha), Color.Transparent),
+                                startY = 0f,
+                                endY = size.height * 0.7f
+                            )
+                        )
                     },
                 contentAlignment = Alignment.BottomCenter
             ) {
@@ -280,26 +295,7 @@ fun FlipCard(
             }
         }
 
-        // ── Shadow overlay during flip ──
-        if (shadowAlpha > 0.01f) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(cardHeight * 0.25f)
-                    .align(Alignment.Center)
-                    .drawBehind {
-                        drawRect(
-                            brush = Brush.verticalGradient(
-                                colors = listOf(
-                                    Color.Transparent,
-                                    Color.Black.copy(alpha = shadowAlpha),
-                                    Color.Transparent
-                                )
-                            )
-                        )
-                    }
-            )
-        }
+        // ── Shadow removed from center; now on flaps (see below) ─
 
         // ── Center divider (mechanical axis) ──
         Box(
@@ -406,26 +402,35 @@ private fun FlipDigit(
     fontWeight: FontWeight = FontWeight.Normal,
     modifier: Modifier = Modifier
 ) {
+    // Fixed width container: ensures all digits occupy the same horizontal space
+    // BebasNeue: 2 digits ≈ 1.0 × fontSize
+    val fixedDigitWidth = (fontSize.value * 1.0f).dp
+
     Box(
         modifier = modifier
             .fillMaxWidth()
             .requiredHeight(cardHeight),
         contentAlignment = Alignment.Center
     ) {
-        androidx.compose.material3.Text(
-            text = text,
-            fontSize = fontSize,
-            fontFamily = flipFont,
-            fontWeight = FontWeight.Black,
-            color = digitColor,
-            textAlign = TextAlign.Center,
-            lineHeight = fontSize,
-            maxLines = 1,
-            style = TextStyle(
-                platformStyle = PlatformTextStyle(
-                    includeFontPadding = false
+        Box(
+            modifier = Modifier.width(fixedDigitWidth),
+            contentAlignment = Alignment.Center
+        ) {
+            androidx.compose.material3.Text(
+                text = text,
+                fontSize = fontSize,
+                fontFamily = flipFont,
+                fontWeight = FontWeight.Black,
+                color = digitColor,
+                textAlign = TextAlign.Center,
+                lineHeight = fontSize,
+                maxLines = 1,
+                style = TextStyle(
+                    platformStyle = PlatformTextStyle(
+                        includeFontPadding = false
+                    )
                 )
             )
-        )
+        }
     }
 }
